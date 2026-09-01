@@ -6,7 +6,7 @@ Error text is quoted verbatim so you can find these by searching for the error y
 
 ## DGX Spark (GB10)
 
-- **[DCGM diag skips almost every plugin on GB10](dgx-spark/dcgm-skips-on-gb10.md)** — `The targeted_stress test is skipped. Check DCGM and system configuration.` The plugins never look at the hardware. They look up a PCI device ID in a table compiled into the binary, GB10 is not in it, and they exit. `-p "generic_mode=True"` turns 6 of the 8 skips into passes.
+- **[DCGM diag skips almost every plugin on GB10](dgx-spark/dcgm-skips-on-gb10.md)** — `The targeted_stress test is skipped. Check DCGM and system configuration.` The plugins never look at the hardware. They look up a PCI device ID in a table compiled into the binary, GB10 is not in it, and they exit. `-p "generic_mode=True"` turns 6 of the 8 skips into passes. · 中文原文：[DGX Spark（GB10）上 dcgmi diag 几乎所有插件都跳过](dgx-spark/dcgm-skips-on-gb10.zh.md)
 
 - **[DCGM install: "Detected unsupported Cuda version"](dgx-spark/dcgm-install-cuda13.md)** — `apt-get install datacenter-gpu-manager` gives you 3.3.9, which does not support CUDA 13. `datacenter-gpu-manager-4` does not exist. The package is `datacenter-gpu-manager-4-cuda13`.
 
@@ -18,3 +18,7 @@ NVIDIA DGX Spark (GB10)
 128 GB unified LPDDR5X (121 Gi visible to the OS, 130.7 GB GPU-addressable)
 CUDA 13, DCGM 4.6.1
 ```
+
+---
+
+How these notes are structured: [CONVENTIONS.md](CONVENTIONS.md)

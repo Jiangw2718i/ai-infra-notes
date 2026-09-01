@@ -190,3 +190,7 @@ nvbandwidth  pcie  targetedpower  targetedstress
 There is no `pulse` and no `memorybandwidth`. Both exist in the open-source repo only as names and interfaces (`PULSE_TEST_PLUGIN_NAME`, `MEMBW_PLUGIN_NAME`, `DCGM_PULSE_TEST_INDEX`, `DCGM_MEMORY_BANDWIDTH_INDEX`). The implementations are closed source and ship only as binaries in the deb package.
 
 So why they ignore `generic_mode` cannot be answered from source. The gate is not in the open tree.
+
+---
+
+中文原文（更长，含调查过程）：[dcgm-skips-on-gb10.zh.md](dcgm-skips-on-gb10.zh.md)
