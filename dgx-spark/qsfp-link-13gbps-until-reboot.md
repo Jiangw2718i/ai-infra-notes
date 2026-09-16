@@ -88,10 +88,46 @@ Give `ib_write_bw` the wrong `-x` and it fails in the least helpful way availabl
 
 ## What was not the cause
 
-- **The cable.** Its EEPROM does not match what it is sold as — `ethtool -m` reports `Identifier: 0x11 (QSFP28)`, `Transceiver type: 40G Ethernet: 40G Base-CR4`, `BR, Nominal: 25500Mbps`, `Length (Copper or Active cable): 1m`, on a part number that is listed as a 40 cm QSFP112 400G DAC. It still does 98 Gb/s per rail after a reboot. Whether the EEPROM is mislabelled or the part is relabelled, I could not settle — and it did not matter.
+- **The cable.** `ethtool -m` makes a correct 400G-class DAC look like a 40G one. Every odd line is a legacy-format artifact — see [What `ethtool -m` gets wrong about a DAC](#what-ethtool--m-gets-wrong-about-a-dac) below.
+
+  *This note first said the EEPROM "does not match what it is sold as" and that I could not settle whether it was mislabelled or relabelled. That was wrong, and reading the raw bytes against SFF-8636 and SFF-8024 disproved it.*
 - **`Detected insufficient power on the PCIe slot (27W)`.** This `mlx5_pcie_event` line appears four times per boot on both machines, including the boot that measured 98 Gb/s per rail. It is not a throttle indicator.
 - **PCIe negotiation.** `LnkSta: Speed 32GT/s, Width x4` on both controllers, matching `LnkCap`.
 - **FEC errors.** RS-FEC is active and does correct a small number of bits under load (`rx_corrected_bits_phy` +4671 over a 16 GiB transfer), with `rx_crc_errors_phy` at 0 throughout. Not enough to explain a 7× shortfall.
+
+## What `ethtool -m` gets wrong about a DAC
+
+While suspecting the cable I read its EEPROM, and every field that looked damning turned out to be a legacy-encoding artifact. The decoded output:
+
+```
+Identifier                                : 0x11 (QSFP28)
+Transceiver type                          : 40G Ethernet: 40G Base-CR4
+Encoding                                  : 0x08 (PAM4)
+BR, Nominal                               : 25500Mbps
+Length (OM1 62.5um)                       : 7m
+Length (Copper or Active cable)           : 1m
+Vendor PN                                 : NJAAKK-N911
+Revision Compliance                       : Unallocated
+```
+
+Read against the specs, byte by byte (`sudo ethtool -m <dev> hex on`):
+
+| Field | What it looks like | What the spec says |
+|---|---|---|
+| `Identifier: 0x11 (QSFP28)` | An old 100G-class module | SFF-8024 Rev 4.14 Table 4-1: `11h` = "QSFP28 **or later** with SFF-8636 management interface". The byte selects the management memory map, not the speed. SFF-8024 4.14 has no QSFP112 identifier at all; `1Eh` means the module implements CMIS instead. A passive DAC on SFF-8636 must report `11h` |
+| `40G Base-CR4` | A 40G cable | Byte 131 = `0x88`. Bit 3 (`0x08`) is the 40GBASE-CR4 compatibility claim; bit 7 (`0x80`) means "real specification is in byte 192" (SFF-8636 §6.3.4). Byte 192 = `0x3F` = **100GBASE-CR1 / 200GBASE-CR2 / 400GBASE-CR4**, 802.3ck Clause 162 (SFF-8024 Rev 4.14 Table 4-4). The 200G-class code would be `40h` |
+| `BR, Nominal: 25500Mbps` | 25 Gb/s | Byte 140 = `0xFF`, the documented saturation value meaning "see byte 222". Byte 222 = `0xD5` = 213 × 250 = **53.25 GBd**. SFF-8636 Rev 2.12 §6.3.6 renamed these fields from "BR, nominal" in Mb/s to "signaling rate, nominal" in **MBd** precisely to stop this confusion; with PAM4 (byte 139) that is ~106 Gb/s per lane, ~426 Gb/s over four |
+| `Length (Copper): 1m` on a 40 cm cable | A wrong length | SFF-8636 §6.3.12: units of 1 metre, and "link lengths less than 1 meter shall indicate 1 meter". 0.4 cannot be encoded. Sub-metre granularity exists only in CMIS (byte 202, 0.1 m multiplier) |
+| `Length (OM1 62.5um): 7m` | A fibre length on a copper cable | Not a length. When byte 147 bits 7–4 are `1010b` (copper, unequalized — here `0xa0`), byte 145 is **attenuation at 25.78 GHz in dB** = 7 dB. `ethtool` prints the field as OM1 metres unconditionally |
+| `Revision Compliance: Unallocated` | A malformed EEPROM | Byte 1 = `0x08` = SFF-8636 Rev 2.8. `ethtool`'s table stops at `07h` |
+
+Two integrity checks pass: the base and extended checksums recomputed from bytes 128–190 and 192–222 match the stored `0x2C` and `0x12`. Editing a part number normally breaks those.
+
+An NVIDIA support attachment from May 2026 shows a different DGX Spark DAC — a Mellanox `QSFP-200G-CU0.5M` — reporting the same `Identifier 0x11`, the same `BR 25500Mbps`, and the same `Length (Copper): 1m` for a 0.5 m cable, with byte 192 = `0x40` for its 200G class. Same artifacts, working cable.
+
+So: `ethtool -m` alone cannot tell you a DAC's speed class. Read byte 131 bit 7, then byte 192, then byte 222 with byte 139.
+
+**The spec references in this section were checked against SFF-8024 Rev 4.14 and SFF-8636 Rev 2.9/2.12 by a research pass, not by me reading the documents end to end.**
 
 ## Unrelated crash found in the same journal
 
