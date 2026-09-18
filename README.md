@@ -12,6 +12,12 @@ Error text is quoted verbatim so you can find these by searching for the error y
 
 - **[DCGM install: "Detected unsupported Cuda version"](dgx-spark/dcgm-install-cuda13.md)** — `apt-get install datacenter-gpu-manager` gives you 3.3.9, which does not support CUDA 13. `datacenter-gpu-manager-4` does not exist. The package is `datacenter-gpu-manager-4-cuda13`.
 
+## Local LLM
+
+- **[Claude Code with tool search gets a 400 on the first request of every session against vLLM](local-llm/tool-search-first-request-400.md)** — `'input': 'tool_addition'` … `Input should be 'text', 'image', 'tool_use', 'tool_result', 'tool_reference', 'thinking' or 'redacted_thinking'`. The first request carries `tool_addition` content blocks (beta `mid-conversation-tool-changes-2026-07-01`) that vLLM's `/v1/messages` does not accept; the client drops them and the beta header, resends, and nothing appears on the command line. I first blamed `input_schema`, filed two issues on that, installed a fix for it, and only then captured the real request. · 中文原文：[Claude Code 开着 Tool Search 接 vLLM，每个会话的第一个请求都被 400 拒掉](local-llm/tool-search-first-request-400.zh.md)
+
+- **[Claude Code assumes a 200k context for a model its catalog does not know](local-llm/unknown-model-context-window.md)** — `"qwen3.8-flash-next" isn't described by this version's model catalog`. The session envelope reports `contextWindow: 200000` while the server was started with `--max-model-len 262144`, so ~62k tokens go unused and auto-compact fires early. `CLAUDE_CODE_MAX_CONTEXT_TOKENS=262144` fixes it; `behavesAs` / `modelOverrides` had no effect behind a custom base URL.
+
 ## Hardware
 
 ```
